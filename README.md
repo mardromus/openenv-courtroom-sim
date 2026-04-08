@@ -1,3 +1,13 @@
+---
+title: OpenEnv Courtroom Sim
+emoji: ⚖️
+colorFrom: blue
+colorTo: red
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Multi-Agent Indian Courtroom RL Environment ⚖️
 
 > **"Build a Mini RL Environment with defined tasks, graders, and reward logic."**
