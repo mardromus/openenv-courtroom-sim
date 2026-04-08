@@ -16,3 +16,6 @@ dependencies = [
     "httpx",
     "openenv-core"
 ]
+
+[project.scripts]
+server = "server.app:main"
