@@ -169,7 +169,7 @@ async def main():
                 break
 
         score = sum(rewards)
-        score = min(max(score, 0.0), 1.0) # Clamp score exactly between [0, 1]
+        score = min(max(score, 0.01), 0.99) # Clamp score exactly between [0.01, 0.99]
         success = score >= SUCCESS_SCORE_THRESHOLD
 
     finally:
