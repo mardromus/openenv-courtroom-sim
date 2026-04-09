@@ -55,10 +55,11 @@ We have implemented 3 escalating tasks (via `tasks.py`):
 ## 🛠️ How to Run & Setup
 
 ### 1. Run the FastAPI Server Locally
-The environment runs as a standard Hugging Face Space FastAPI container.
+The environment runs as a standard Hugging Face Space FastAPI container. We use Astral's `uv` for lightning-fast package management to strictly comply with OpenEnv's multi-mode deployment.
 ```bash
-pip install -r requirements.txt
-python env.py
+uv lock
+uv pip install -e .
+uvicorn server.app:app --host 0.0.0.0 --port 7860
 ```
 *(Runs on port 7860 by default)*
 
