@@ -14,7 +14,8 @@ MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
-TASK_NAME = os.getenv("COURTROOM_TASK", "case-001-easy")
+# Auto-grader injects task ID. Capture all standard variants.
+TASK_NAME = os.getenv("TASK_ID") or os.getenv("TASK_NAME") or os.getenv("OPENENV_TASK") or os.getenv("TASK") or "case-001-easy"
 BENCHMARK = "courtroom-sim"
 MAX_STEPS = 8
 TEMPERATURE = 0.7
@@ -109,8 +110,8 @@ class ProcessEnvClient:
                     except Exception:
                         pass
     
-    async def reset(self):
-        resp = await self.client.post("/reset")
+    async def reset(self, task_id: str):
+        resp = await self.client.post("/reset", json={"task": task_id})
         return resp.json()
 
     async def step(self, action: Dict[str, Any]):
