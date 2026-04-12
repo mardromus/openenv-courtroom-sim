@@ -2,7 +2,7 @@ import uvicorn
 import sys
 import os
 
-# Ensure the root codebase is in the path so env.py can be loaded
+# Ensure the root codebase is in the path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from env import app

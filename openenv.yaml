@@ -1,18 +1,26 @@
-name: courtroom-sim
+name: disasterops-env
 version: 1.0.0
-description: Multi-Agent Indian Courtroom RL Environment for OpenEnv Hackathon.
+description: >
+  Emergency Disaster Response & Resource Coordination Environment.
+  Agent plays an EOC Coordinator managing multi-agency disaster response —
+  allocating limited resources, evacuating populations, and handling
+  cascading secondary events under time pressure.
 
-author: Hackathon Team
+author: Kushagra Goyal
 license: MIT
 
 entrypoint:
   type: http
   url: http://localhost:7860
-  
+
 tasks:
-  - id: case-001-easy
-    description: A simple contract dispute requiring minimal evidence presentation.
-  - id: case-002-medium
-    description: A theft accusation with 2 conflicting witnesses and an alibi.
-  - id: case-003-hard
-    description: A complex corporate fraud case requiring multiple evidence linkages.
+  - id: disaster-001-flood
+    description: "Easy: River flood in 3 residential zones. Plenty of resources, all roads open."
+  - id: disaster-002-earthquake
+    description: "Medium: 6.5 earthquake with aftershock at step 5. 6 zones affected. Blocked roads."
+  - id: disaster-003-hurricane
+    description: "Hard: Cat-4 hurricane with dam breach risk. Helicopters grounded. Preemptive evacuation required."
+  - id: disaster-004-cascading
+    description: "Expert: Earthquake + chemical spill + dam breach. Multi-hazard. Fog of war."
+  - id: disaster-005-megadisaster
+    description: "Nightmare: 8.1 earthquake + tsunami. 15 zones, minimal resources. Cannot save everyone."
