@@ -50,8 +50,8 @@ def _ensure_state() -> EnvState:
 
 
 @app.get("/")
-def health_check():
-    """Health check endpoint."""
+def root():
+    """Root info endpoint."""
     return {
         "status": "ok",
         "environment": "DisasterOps-Env",
@@ -59,6 +59,32 @@ def health_check():
         "available_tasks": get_task_ids()
     }
 
+@app.get("/health")
+def health_check():
+    """OpenEnv health endpoint."""
+    return {"status": "healthy"}
+
+@app.get("/metadata")
+def metadata():
+    """OpenEnv metadata endpoint."""
+    return {
+        "name": "DisasterOps-Env",
+        "description": "Emergency Disaster Response & Resource Coordination Environment for OpenEnv"
+    }
+
+@app.get("/schema")
+def schema():
+    """OpenEnv schema endpoint."""
+    return {
+        "action": Action.model_json_schema(),
+        "observation": Observation.model_json_schema(),
+        "state": StepResult.model_json_schema()
+    }
+
+@app.post("/mcp")
+async def mcp_stub(request: Request):
+    """OpenEnv MCP stub endpoint."""
+    return {"jsonrpc": "2.0"}
 
 @app.post("/reset")
 async def reset(request: Request) -> StepResult:
