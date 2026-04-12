@@ -176,7 +176,7 @@ class DisasterGrader:
         if self.world.max_steps >= 12 and not self.world.mutual_aid_called:
             score -= 0.03
 
-        return round(max(0.0, min(1.0, score)), 3)
+        return round(max(0.001, min(0.999, score)), 3)
 
     def get_step_reward_for_logging(self) -> float:
         """Get the latest step reward."""

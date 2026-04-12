@@ -343,7 +343,7 @@ async def run_task(client_llm: OpenAI, env: ProcessEnvClient, task_id: str) -> f
 
         # Calculate final score
         score = sum(rewards)
-        score = min(max(score, 0.0), 1.0)
+        score = min(max(score, 0.001), 0.999)
         success = score >= SUCCESS_THRESHOLD
 
     except Exception as e:
