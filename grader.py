@@ -175,7 +175,11 @@ class DisasterGrader:
         # Penalty for never calling mutual aid on hard tasks
         if self.world.max_steps >= 12 and not self.world.mutual_aid_called:
             score -= 0.03
-
+            
+        # Penalty for going bankrupt
+        if self.world.operational_budget < 0:
+            score -= 0.05
+            
         return round(max(0.001, min(0.999, score)), 3)
 
     def get_step_reward_for_logging(self) -> float:

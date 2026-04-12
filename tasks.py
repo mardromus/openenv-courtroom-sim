@@ -26,6 +26,7 @@ def build_flood_easy() -> DisasterWorld:
     world.incident_name = "River Flood — Central District"
     world.max_steps = 8
     world.weather = "overcast"
+    world.operational_budget = 1000000.0  # Infinite essentially
 
     world.zones = {
         "zone-res-north": ZoneStatus(
@@ -124,6 +125,7 @@ def build_earthquake_medium() -> DisasterWorld:
     world.incident_name = "6.5 Earthquake — Metro Region"
     world.max_steps = 10
     world.weather = "clear"
+    world.operational_budget = 500000.0
 
     world.zones = {
         "zone-res-west": ZoneStatus(
@@ -267,6 +269,7 @@ def build_hurricane_hard() -> DisasterWorld:
     world.max_steps = 12
     world.weather = "severe_storm"
     world.helicopters_grounded = True
+    world.operational_budget = 300000.0
 
     world.zones = {
         "zone-coastal-south": ZoneStatus(
@@ -461,6 +464,8 @@ def build_cascading_expert() -> DisasterWorld:
     world.incident_name = "Multi-Hazard Crisis — Earthquake + Industrial Disaster"
     world.max_steps = 14
     world.weather = "clear"
+    world.wind_direction = "east"
+    world.operational_budget = 150000.0
 
     world.zones = {
         "zone-res-alpha": ZoneStatus(
@@ -589,7 +594,14 @@ def build_cascading_expert() -> DisasterWorld:
             affected_zones=["zone-chem-adjacent"],
             road_closures=[],
             preventable=True,
-            prevention_action="evacuate_zone"
+            prevention_action="evacuate_zone",
+            spread_direction="east",
+            spread_rate_zones_per_step=1,
+            adjacency_map={
+                "zone-chem-adjacent": {"east": "zone-res-gamma"},
+                "zone-res-gamma": {"east": "zone-res-beta"},
+                "zone-res-beta": {"east": "zone-commercial-hub"}
+            }
         ),
         CascadingEvent(
             event_id="dam-failure",
@@ -659,6 +671,7 @@ def build_megadisaster_nightmare() -> DisasterWorld:
     world.max_steps = 16
     world.weather = "storm"
     world.helicopters_grounded = True
+    world.operational_budget = 100000.0
 
     world.zones = {
         "zone-coast-1": ZoneStatus(

@@ -41,6 +41,8 @@ class DisasterWorld:
         self.action_log: List[str] = []
         self.total_initial_population: int = 0
         self.preventable_casualties: int = 0
+        self.operational_budget: float = 0.0
+        self.wind_direction: str = "none"
         self._seed: int = 42
         random.seed(self._seed)
 
@@ -143,6 +145,8 @@ class DisasterWorld:
             time_elapsed_hours=round(self.time_elapsed_hours, 1),
             pending_warnings=self.get_pending_warnings(),
             weather_conditions=self.weather,
+            wind_direction=self.wind_direction,
+            operational_budget=self.operational_budget,
             available_actions=self.get_available_actions(),
             incident_name=self.incident_name,
             current_step=self.current_step,
@@ -210,6 +214,9 @@ class DisasterWorld:
         for event in self.cascading_events:
             if not event.triggered and self.current_step >= event.trigger_step:
                 self._trigger_cascading_event(event)
+
+        # Handle spreading events (like chemical plumes based on wind)
+        self._process_spreading_hazards()
 
         # Check mutual aid arrival
         if self.mutual_aid_called and self.current_step >= self.mutual_aid_arrives_step:
@@ -292,8 +299,55 @@ class DisasterWorld:
             trapped_reported=sum(
                 self.zones[zid].trapped_people for zid in event.affected_zones
                 if zid in self.zones
-            )
+            ),
+            verified=True  # Ensure verified=True here correctly
         ))
+        
+        # Enable spreading if configured
+        if event.spread_direction:
+            event.spread_active = True
+
+    def _process_spreading_hazards(self):
+        """Processes events that spread step-by-step to adjacent zones."""
+        for event in self.cascading_events:
+            if not event.spread_active or not event.triggered:
+                continue
+
+            # Need to find zones to spread to
+            new_affected = []
+            for current_zone in event.affected_zones:
+                if current_zone in event.adjacency_map:
+                    # Look up neighbors in the wind direction
+                    neighbors_in_wind = event.adjacency_map[current_zone].get(self.wind_direction, "")
+                    if neighbors_in_wind:
+                        for neighbor in neighbors_in_wind.split(","):
+                            neighbor = neighbor.strip()
+                            if neighbor and neighbor not in event.affected_zones and neighbor not in new_affected:
+                                new_affected.append(neighbor)
+            
+            # Apply damage to the newly affected zones based on spread rate limit
+            # Only spread up to 'spread_rate_zones_per_step' zones per step
+            new_affected = new_affected[:event.spread_rate_zones_per_step]
+            
+            for zone_id in new_affected:
+                event.affected_zones.append(zone_id)
+                zone = self.zones.get(zone_id)
+                if zone and zone.status not in (ZoneState.EVACUATED, ZoneState.EVACUATING):
+                    zone.damage_level = min(1.0, zone.damage_level + 0.3)
+                    zone.status = ZoneState.CRITICAL
+                    new_casualties = int(zone.population * 0.1)
+                    zone.casualties += new_casualties
+                    zone.trapped_people += int(zone.population * 0.2)
+                    self.preventable_casualties += new_casualties
+                    
+                    self.sitreps.append(SitRep(
+                        timestamp_hours=self.time_elapsed_hours,
+                        zone_id=zone_id,
+                        report=f"☣️ SPREADING HAZARD: Hazard from {event.event_id} has spread to {zone.name} via {self.wind_direction} winds!",
+                        severity="catastrophic",
+                        casualties_reported=new_casualties,
+                        verified=True
+                    ))
 
     def _deliver_mutual_aid(self):
         """Deliver mutual aid resources when they arrive."""
@@ -346,6 +400,21 @@ class DisasterWorld:
         """
         reward = 0.0
         result = ""
+        cost = 0.0
+
+        if command == "deploy_resource":
+            cost = 15000 if resource_type == ResourceType.HELICOPTER else 5000
+        elif command == "evacuate_zone":
+            cost = 10000
+        elif command == "call_mutual_aid":
+            cost = 100000
+        elif command == "open_shelter":
+            cost = 15000
+            
+        if self.operational_budget < cost:
+            return f"Insufficient budget! Needed ${cost:,.2f}, have ${self.operational_budget:,.2f}", -0.05
+            
+        self.operational_budget -= cost
 
         if command == "deploy_resource":
             result, reward = self._action_deploy(target_zone, resource_type)

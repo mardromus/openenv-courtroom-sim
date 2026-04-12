@@ -62,10 +62,26 @@ TASK_MAX_STEPS = {
     "disaster-005-megadisaster": 16,
 }
 
-SYSTEM_PROMPT = textwrap.dedent("""
-You are an Emergency Operations Center (EOC) Coordinator managing disaster response.
-Your goal is to SAVE AS MANY LIVES AS POSSIBLE by deploying resources, evacuating zones,
-and responding to cascading events.
+ANALYST_SYSTEM_PROMPT = textwrap.dedent("""
+You are the Intelligence Analyst at an Emergency Operations Center (EOC).
+Your job is to read the raw data from the field, calculate where people are in the most danger, and write a <thought_process> outlining the priorities.
+Pay close attention to cascading warnings, budget remaining, and wind directions which carry chemical spills.
+
+You do NOT issue commands. You must output your analysis enclosed in <thought_process> tags, followed by a succinct SUMMARY of the top 3 priorities.
+""").strip()
+
+CHIEF_SYSTEM_PROMPT = textwrap.dedent("""
+You are the Operations Chief at an Emergency Operations Center (EOC).
+You receive the Intelligence Analyst's report and must decide on ONE action to take this step.
+Analyze the report and your operational budget in a <thought_process> block.
+Then output exactly ONE JSON action object.
+
+ACTION COSTS:
+- Helicopter deploy: $15,000
+- Evacuate Zone: $10,000
+- Truck/Rescue/Medical deploy: $5,000
+- Open Shelter: $15,000
+- Call Mutual Aid: $100,000
 
 AVAILABLE ACTIONS (respond with JSON):
 {
@@ -81,21 +97,15 @@ ACTION TYPES:
 - evacuate_zone: Begin evacuation of a zone. Requires target_zone.
 - open_shelter: Open an emergency shelter. Optionally target_zone.
 - request_sitrep: Get situation report. Optionally target_zone.
-- assess_zone: Detailed assessment of a zone. Requires target_zone.
 - call_mutual_aid: Request additional resources (arrive in 2 steps).
 - recall_resource: Pull back a deployed resource. Requires target_zone.
-- submit_report: Submit incident report (use at end of episode).
 
 STRATEGY:
 1. PRIORITIZE critical zones with trapped people — they die without help
-2. Deploy rescue_squad to zones with many trapped people
-3. Deploy medical_team to zones with casualties
-4. HEED WARNINGS about cascading events — evacuate threatened zones BEFORE disaster strikes
-5. Open shelters early for evacuees
-6. Call mutual aid on hard scenarios
-7. Helicopters can reach blocked zones but check if grounded
+2. If budget is low, prioritize cheap actions like request_sitrep or truck deployments
+3. HEED WARNINGS about cascading events — evacuate threatened zones BEFORE disaster strikes
 
-Respond with ONLY valid JSON. No explanation, no markdown, just the JSON object.
+Respond with your <thought_process> first, then ONLY valid JSON.
 """).strip()
 
 
@@ -131,6 +141,8 @@ def build_user_prompt(step: int, obs: Dict[str, Any], history: List[str]) -> str
     casualty_summary = obs.get("casualty_summary", {})
     last_result = obs.get("last_action_result", "")
     weather = obs.get("weather_conditions", "clear")
+    wind = obs.get("wind_direction", "none")
+    budget = obs.get("operational_budget", 0.0)
     roads = obs.get("road_network", {})
     shelters = obs.get("shelter_status", {})
     deployed = obs.get("deployed_resources", [])
@@ -185,7 +197,8 @@ def build_user_prompt(step: int, obs: Dict[str, Any], history: List[str]) -> str
                 f"Trapped: {cas.get('total_trapped', 0)}")
 
     return textwrap.dedent(f"""
-Step {step}/{max_steps} | Weather: {weather}
+Step {step}/{max_steps} | Weather: {weather} | Wind: {wind}
+Remaining Budget: ${budget:,.2f}
 Last action result: {last_result}
 
 ═══ CRITICAL/AFFECTED ZONES ═══
@@ -217,29 +230,44 @@ Respond with a single JSON action object. Think about what saves the most lives 
 
 def get_model_action(client: OpenAI, step: int, obs: Dict[str, Any],
                      history: List[str]) -> Dict[str, Any]:
-    """Get action from LLM."""
+    """Get action using a Multi-Agent CoT orchestration."""
     user_prompt = build_user_prompt(step, obs, history)
 
     try:
-        completion = client.chat.completions.create(
+        # Agent 1: Intelligence Analyst
+        comp1 = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": ANALYST_SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
             temperature=TEMPERATURE,
-            max_tokens=MAX_TOKENS,
+            max_tokens=600,
             stream=False,
         )
-        text = (completion.choices[0].message.content or "").strip()
+        analyst_output = (comp1.choices[0].message.content or "").strip()
+        
+        # Agent 2: Operations Chief
+        chief_prompt = f"{user_prompt}\n\n=== INTELLIGENCE ANALYST REPORT ===\n{analyst_output}"
+        
+        comp2 = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": CHIEF_SYSTEM_PROMPT},
+                {"role": "user", "content": chief_prompt},
+            ],
+            temperature=TEMPERATURE,
+            max_tokens=600,
+            stream=False,
+        )
+        chief_output = (comp2.choices[0].message.content or "").strip()
 
-        # Parse JSON from response (handle markdown code blocks)
-        json_match = re.search(r'\{[^{}]*\}', text, re.DOTALL)
+        # Parse JSON from Chief response
+        json_match = re.search(r'\{[^{}]*\}', chief_output, re.DOTALL)
         if json_match:
             return json.loads(json_match.group())
 
-        # Fallback
-        return json.loads(text)
+        return json.loads(chief_output)
 
     except json.JSONDecodeError:
         print(f"[DEBUG] Failed to parse JSON from model response", flush=True)

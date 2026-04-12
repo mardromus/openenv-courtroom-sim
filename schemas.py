@@ -143,6 +143,13 @@ class CascadingEvent(BaseModel):
     triggered: bool = False
     preventable: bool = False
     prevention_action: Optional[str] = None
+    
+    # Spreading hazard fields
+    spread_active: bool = False
+    spread_direction: Optional[str] = None  # e.g., 'north', 'south'
+    spread_rate_zones_per_step: int = 1
+    adjacency_map: Dict[str, Dict[str, str]] = Field(default_factory=dict)
+    # adjacency_map format: {"zone_id": {"north": "other_zone", "east": "..."}}
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -179,9 +186,11 @@ class Observation(BaseModel):
     road_network: Dict[str, str] = Field(default_factory=dict)
     shelter_status: Dict[str, ShelterInfo] = Field(default_factory=dict)
     casualty_summary: CasualtySummary = Field(default_factory=CasualtySummary)
+    operational_budget: float = 0.0
     time_elapsed_hours: float = 0.0
     pending_warnings: List[str] = Field(default_factory=list)
     weather_conditions: str = "clear"
+    wind_direction: str = "none"
     available_actions: List[str] = Field(default_factory=list)
     incident_name: str = ""
     current_step: int = 0
